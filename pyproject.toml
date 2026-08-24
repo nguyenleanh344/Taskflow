@@ -11,6 +11,9 @@ dependencies = [
     "pydantic-settings",
     "email-validator",
     "alembic",
+    "passlib[bcrypt]",
+    "bcrypt<5",
+    "python-jose[cryptography]",
 ]
 
 [tool.setuptools.packages.find]

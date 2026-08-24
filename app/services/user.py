@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import hash_password
 from app.repositories.user import UserRepository
 from app.schemas.user import UserCreate
 
@@ -19,9 +20,7 @@ class UserService:
         if existing_user:
             raise ValueError("Email already exists")
 
-        # Tạm thời chưa hash password.
-        # Authentication sẽ làm ở phase sau.
-        password_hash = data.password
+        password_hash = hash_password(data.password)
 
         user = await self.repository.create(
             email=data.email,
