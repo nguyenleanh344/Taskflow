@@ -1,12 +1,9 @@
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, String, func
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import  Mapped, mapped_column, relationship
 
-
-class Base(DeclarativeBase):
-    pass
-
+from app.db.base import Base
 
 class User(Base):
     __tablename__ = "users"
@@ -41,6 +38,11 @@ class User(Base):
         Boolean,
         nullable=False,
         default=True,
+    )
+    
+    projects = relationship(
+        "Project",
+        back_populates="owner",
     )
 
     created_at: Mapped[datetime] = mapped_column(
