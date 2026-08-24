@@ -44,6 +44,12 @@ class User(Base):
         "Project",
         back_populates="owner",
     )
+    
+    project_memberships = relationship(
+        "ProjectMember",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
