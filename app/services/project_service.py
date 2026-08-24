@@ -15,7 +15,6 @@ class ProjectForbiddenError(Exception):
 
 
 class ProjectService:
-
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repository = ProjectRepository(session)

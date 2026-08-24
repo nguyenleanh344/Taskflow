@@ -7,7 +7,6 @@ from app.models.refresh_token import RefreshToken
 
 
 class RefreshTokenRepository:
-
     def __init__(self, session: AsyncSession):
         self.session = session
 
@@ -35,10 +34,7 @@ class RefreshTokenRepository:
     ) -> RefreshToken | None:
 
         result = await self.session.execute(
-            select(RefreshToken)
-            .where(
-                RefreshToken.token_hash == token_hash
-            )
+            select(RefreshToken).where(RefreshToken.token_hash == token_hash)
         )
 
         return result.scalar_one_or_none()

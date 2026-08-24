@@ -37,11 +37,10 @@ async def get_current_user_profile(
 ):
     return current_user
 
+
 @router.get("/admin-only")
 async def admin_only(
-    current_user: User = Depends(
-        require_role("admin")
-    ),
+    current_user: User = Depends(require_role("admin")),
 ):
     return {
         "message": "You are an admin",

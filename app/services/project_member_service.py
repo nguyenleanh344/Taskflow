@@ -30,7 +30,6 @@ class ProjectMemberForbiddenError(Exception):
 
 
 class ProjectMemberService:
-
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repository = ProjectMemberRepository(session)
@@ -126,10 +125,7 @@ class ProjectMemberService:
         if project is None:
             raise ProjectNotFoundError
 
-        if (
-            project.owner_id != current_user.id
-            and current_user.role != "admin"
-        ):
+        if project.owner_id != current_user.id and current_user.role != "admin":
             raise ProjectMemberForbiddenError
 
         return project

@@ -6,16 +6,13 @@ from app.schemas.user import UserCreate
 
 
 class UserService:
-
     def __init__(self, session: AsyncSession):
         self.repository = UserRepository(session)
         self.session = session
 
     async def create_user(self, data: UserCreate):
 
-        existing_user = await self.repository.get_by_email(
-            data.email
-        )
+        existing_user = await self.repository.get_by_email(data.email)
 
         if existing_user:
             raise ValueError("Email already exists")

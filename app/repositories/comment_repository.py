@@ -5,7 +5,6 @@ from app.models.comment import Comment
 
 
 class CommentRepository:
-
     def __init__(self, session: AsyncSession):
         self.session = session
 

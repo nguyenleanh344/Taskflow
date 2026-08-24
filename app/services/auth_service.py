@@ -16,7 +16,6 @@ from app.schemas.auth import LoginRequest
 
 
 class AuthService:
-
     def __init__(self, session: AsyncSession):
         self.session = session
         self.user_repository = UserRepository(session)
@@ -27,9 +26,7 @@ class AuthService:
         data: LoginRequest,
     ) -> tuple[str, str]:
 
-        user = await self.user_repository.get_by_email(
-            data.email
-        )
+        user = await self.user_repository.get_by_email(data.email)
 
         if user is None:
             raise ValueError("Invalid credentials")
@@ -47,15 +44,10 @@ class AuthService:
 
         refresh_token = create_refresh_token()
 
-        refresh_token_hash = hash_refresh_token(
-            refresh_token
-        )
+        refresh_token_hash = hash_refresh_token(refresh_token)
 
-        expires_at = (
-            datetime.now(timezone.utc)
-            + timedelta(
-                days=settings.refresh_token_expire_days
-            )
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            days=settings.refresh_token_expire_days
         )
 
         await self.refresh_repository.create(

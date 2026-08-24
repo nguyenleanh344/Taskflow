@@ -5,7 +5,6 @@ from app.models.project_member import ProjectMember
 
 
 class ProjectMemberRepository:
-
     def __init__(self, session: AsyncSession):
         self.session = session
 

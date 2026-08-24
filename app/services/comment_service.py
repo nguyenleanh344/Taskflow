@@ -22,7 +22,6 @@ class TaskNotFoundError(Exception):
 
 
 class CommentService:
-
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repository = CommentRepository(session)
@@ -114,10 +113,7 @@ class CommentService:
         if comment.task_id != task_id:
             raise CommentNotFoundError
 
-        if (
-            comment.author_id != current_user.id
-            and current_user.role != "admin"
-        ):
+        if comment.author_id != current_user.id and current_user.role != "admin":
             raise CommentForbiddenError
 
         comment.content = data.content
@@ -149,10 +145,7 @@ class CommentService:
         if comment.task_id != task_id:
             raise CommentNotFoundError
 
-        if (
-            comment.author_id != current_user.id
-            and current_user.role != "admin"
-        ):
+        if comment.author_id != current_user.id and current_user.role != "admin":
             raise CommentForbiddenError
 
         await self.repository.delete(comment)
@@ -188,10 +181,7 @@ class CommentService:
         if project is None:
             raise TaskNotFoundError
 
-        if (
-            project.owner_id != current_user.id
-            and current_user.role != "admin"
-        ):
+        if project.owner_id != current_user.id and current_user.role != "admin":
             raise CommentForbiddenError
 
         return task

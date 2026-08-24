@@ -5,7 +5,6 @@ from app.models.task import Task
 
 
 class TaskRepository:
-
     def __init__(self, session: AsyncSession):
         self.session = session
 
@@ -32,9 +31,7 @@ class TaskRepository:
         self,
         task_id: int,
     ) -> Task | None:
-        result = await self.session.execute(
-            select(Task).where(Task.id == task_id)
-        )
+        result = await self.session.execute(select(Task).where(Task.id == task_id))
 
         return result.scalar_one_or_none()
 

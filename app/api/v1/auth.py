@@ -41,7 +41,8 @@ async def login(
         access_token=access_token,
         refresh_token=refresh_token,
     )
-    
+
+
 @router.post(
     "/refresh",
     response_model=TokenResponse,
@@ -53,10 +54,8 @@ async def refresh_access_token(
     service = AuthService(session)
 
     try:
-        access_token, refresh_token = (
-            await service.refresh_access_token(
-                data.refresh_token
-            )
+        access_token, refresh_token = await service.refresh_access_token(
+            data.refresh_token
         )
 
     except ValueError:

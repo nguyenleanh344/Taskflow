@@ -60,7 +60,6 @@ class FakeProjectRepository:
 
 
 class ProjectServiceTests(unittest.IsolatedAsyncioTestCase):
-
     def setUp(self):
         FakeProjectRepository.projects = {}
         FakeProjectRepository.next_id = 1

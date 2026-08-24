@@ -21,7 +21,6 @@ class ProjectNotFoundError(Exception):
 
 
 class TaskService:
-
     def __init__(self, session: AsyncSession):
         self.session = session
         self.repository = TaskRepository(session)
@@ -107,9 +106,7 @@ class TaskService:
             current_user,
         )
 
-        for field, value in data.model_dump(
-            exclude_unset=True
-        ).items():
+        for field, value in data.model_dump(exclude_unset=True).items():
             setattr(task, field, value)
 
         await self.session.commit()
@@ -143,17 +140,12 @@ class TaskService:
         current_user: User,
     ) -> Project:
 
-        project = await self.project_repository.get_by_id(
-            project_id
-        )
+        project = await self.project_repository.get_by_id(project_id)
 
         if project is None:
             raise ProjectNotFoundError
 
-        if (
-            project.owner_id != current_user.id
-            and current_user.role != "admin"
-        ):
+        if project.owner_id != current_user.id and current_user.role != "admin":
             raise TaskForbiddenError
 
         return project

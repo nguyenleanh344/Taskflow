@@ -61,12 +61,11 @@ def decode_access_token(token: str) -> int:
 
     except (JWTError, ValueError):
         raise ValueError("Invalid access token")
-    
+
+
 def create_refresh_token() -> str:
     return secrets.token_urlsafe(64)
 
 
 def hash_refresh_token(token: str) -> str:
-    return hashlib.sha256(
-        token.encode()
-    ).hexdigest()
+    return hashlib.sha256(token.encode()).hexdigest()
