@@ -4,6 +4,9 @@ from app.models.project import Project
 from app.models.user import User
 from app.repositories.project_repository import ProjectRepository
 from app.schemas.project import ProjectCreate, ProjectUpdate
+from app.core.authorization.factory import (
+    get_project_authorization_strategy,
+)
 
 
 class ProjectNotFoundError(Exception):
@@ -36,7 +39,9 @@ class ProjectService:
         return project
 
     async def list_projects(self, current_user: User) -> list[Project]:
-        if current_user.role == "admin":
+        strategy = get_project_authorization_strategy(current_user)
+
+        if strategy.can_list_all(current_user):
             return await self.repository.list_all()
 
         return await self.repository.list_by_owner(current_user.id)
@@ -55,9 +60,24 @@ class ProjectService:
         data: ProjectUpdate,
         current_user: User,
     ) -> Project:
-        project = await self._get_authorized_project(project_id, current_user)
+        project = await self.repository.get_by_id(project_id)
 
-        for field, value in data.model_dump(exclude_unset=True).items():
+        if project is None:
+            raise ProjectNotFoundError
+
+        strategy = get_project_authorization_strategy(
+            current_user
+        )
+
+        if not strategy.can_update(
+            project,
+            current_user,
+        ):
+            raise ProjectForbiddenError
+
+        for field, value in data.model_dump(
+            exclude_unset=True
+        ).items():
             setattr(project, field, value)
 
         await self.session.commit()
@@ -70,11 +90,25 @@ class ProjectService:
         project_id: int,
         current_user: User,
     ) -> None:
-        project = await self._get_authorized_project(project_id, current_user)
+        project = await self.repository.get_by_id(project_id)
+
+        if project is None:
+            raise ProjectNotFoundError
+
+        strategy = get_project_authorization_strategy(
+            current_user
+        )
+
+        if not strategy.can_delete(
+            project,
+            current_user,
+        ):
+            raise ProjectForbiddenError
 
         await self.repository.delete(project)
-        await self.session.commit()
 
+        await self.session.commit()
+        
     async def _get_authorized_project(
         self,
         project_id: int,
@@ -85,7 +119,14 @@ class ProjectService:
         if project is None:
             raise ProjectNotFoundError
 
-        if project.owner_id != current_user.id and current_user.role != "admin":
+        strategy = get_project_authorization_strategy(
+            current_user
+        )
+
+        if not strategy.can_access(
+            project,
+            current_user,
+        ):
             raise ProjectForbiddenError
 
         return project

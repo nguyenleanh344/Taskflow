@@ -10,5 +10,6 @@ __all__ = [
     "Project",
     "Task",
     "Comment",
+    "ProjectMember",
     "RefreshToken",
 ]
