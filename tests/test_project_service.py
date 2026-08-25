@@ -45,15 +45,25 @@ class FakeProjectRepository:
     async def get_by_id(self, project_id):
         return type(self).projects.get(project_id)
 
-    async def list_all(self):
-        return list(type(self).projects.values())
+    async def list_all(self, offset=0, limit=20):
+        projects = list(type(self).projects.values())
+        return projects[offset : offset + limit]
 
-    async def list_by_owner(self, owner_id):
-        return [
+    async def list_by_owner(self, owner_id, offset=0, limit=20):
+        projects = [
             project
             for project in type(self).projects.values()
             if project.owner_id == owner_id
         ]
+        return projects[offset : offset + limit]
+
+    async def count_all(self):
+        return len(type(self).projects)
+
+    async def count_by_owner(self, owner_id):
+        return sum(
+            project.owner_id == owner_id for project in type(self).projects.values()
+        )
 
     async def delete(self, project):
         self.session.deleted.append(project.id)
@@ -102,7 +112,8 @@ class ProjectServiceTests(unittest.IsolatedAsyncioTestCase):
 
         projects = await self.service.list_projects(self.user)
 
-        self.assertEqual([project.name for project in projects], ["Mine"])
+        self.assertEqual([project.name for project in projects.items], ["Mine"])
+        self.assertEqual(projects.total, 1)
 
     async def test_admin_can_list_all_projects(self):
         await self.service.create_project(ProjectCreate(name="First"), self.user)
@@ -114,9 +125,10 @@ class ProjectServiceTests(unittest.IsolatedAsyncioTestCase):
         projects = await self.service.list_projects(self.admin)
 
         self.assertEqual(
-            [project.name for project in projects],
+            [project.name for project in projects.items],
             ["First", "Second"],
         )
+        self.assertEqual(projects.total, 2)
 
     async def test_owner_can_update_project(self):
         project = await self.service.create_project(

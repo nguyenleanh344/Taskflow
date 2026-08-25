@@ -3,10 +3,7 @@ from app.models.project import Project
 from app.models.user import User
 
 
-class AdminAuthorizationStrategy(
-    ProjectAuthorizationStrategy
-):
-
+class AdminAuthorizationStrategy(ProjectAuthorizationStrategy):
     def can_access(
         self,
         project: Project,
@@ -29,4 +26,7 @@ class AdminAuthorizationStrategy(
         return user.role == "admin"
 
     def can_list_all(self, user: User) -> bool:
+        return user.role == "admin"
+
+    def can_manage_members(self, project: Project, user: User) -> bool:
         return user.role == "admin"

@@ -38,9 +38,7 @@ async def refresh_access_token(
 ):
     service = AuthService(uow)
 
-    access_token, refresh_token = await service.refresh_access_token(
-        data.refresh_token
-    )
+    access_token, refresh_token = await service.refresh_access_token(data.refresh_token)
 
     return TokenResponse(
         access_token=access_token,

@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from typing import Literal
+
+from fastapi import APIRouter, Depends, Query, Response, status
 from app.core.dependencies import get_current_user
 from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 from app.models.user import User
+from app.schemas.pagination import PageResponse
 from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
 from app.services.task_service import TaskService
 
@@ -38,7 +41,7 @@ async def create_task(
 
 @router.get(
     "",
-    response_model=list[TaskResponse],
+    response_model=PageResponse[TaskResponse],
 )
 async def list_tasks(
     project_id: int,
@@ -46,24 +49,34 @@ async def list_tasks(
         default=None,
         alias="status",
     ),
-    offset: int = Query(
-        default=0,
-        ge=0,
-    ),
+    page: int = Query(default=1, ge=1),
     limit: int = Query(
         default=20,
         ge=1,
         le=100,
     ),
+    sort_by: Literal["created_at", "updated_at", "title", "status"] = Query(
+        default="created_at"
+    ),
+    order: Literal["asc", "desc"] = Query(default="desc"),
     current_user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
-    return await service.list_tasks(
+    result = await service.list_tasks(
         project_id=project_id,
         current_user=current_user,
         status=status_filter,
-        offset=offset,
+        page=page,
         limit=limit,
+        sort_by=sort_by,
+        order=order,
+    )
+    return PageResponse(
+        items=result.items,
+        page=result.page,
+        limit=result.limit,
+        total=result.total,
+        has_next=result.has_next,
     )
 
 
@@ -77,15 +90,7 @@ async def get_task(
     current_user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
-    task = await service.get_task(task_id, current_user)
-
-    if task.project_id != project_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found",
-        )
-
-    return task
+    return await service.get_task(project_id, task_id, current_user)
 
 
 @router.patch(
@@ -99,15 +104,7 @@ async def update_task(
     current_user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
-    task = await service.update_task(task_id, data, current_user)
-
-    if task.project_id != project_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found",
-        )
-
-    return task
+    return await service.update_task(project_id, task_id, data, current_user)
 
 
 @router.delete(
@@ -120,14 +117,6 @@ async def delete_task(
     current_user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
-    task = await service.get_task(task_id, current_user)
-
-    if task.project_id != project_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Task not found",
-        )
-
-    await service.delete_task(task_id, current_user)
+    await service.delete_task(project_id, task_id, current_user)
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

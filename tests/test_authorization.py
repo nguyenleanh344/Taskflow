@@ -13,10 +13,7 @@ from app.models.project import Project
 from app.models.user import User
 
 
-class AuthorizationStrategyTests(
-    unittest.TestCase
-):
-
+class AuthorizationStrategyTests(unittest.TestCase):
     def setUp(self):
         self.owner = User(
             id=1,
@@ -108,6 +105,17 @@ class AuthorizationStrategyTests(
                 self.admin,
             )
         )
+
+    def test_project_owner_can_manage_members(self):
+        strategy = UserAuthorizationStrategy()
+
+        self.assertTrue(strategy.can_manage_members(self.project, self.owner))
+        self.assertFalse(strategy.can_manage_members(self.project, self.other_user))
+
+    def test_admin_can_manage_members(self):
+        strategy = AdminAuthorizationStrategy()
+
+        self.assertTrue(strategy.can_manage_members(self.project, self.admin))
 
     def test_admin_strategy_rejects_non_admin_user(self):
         strategy = AdminAuthorizationStrategy()

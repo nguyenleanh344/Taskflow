@@ -3,10 +3,7 @@ from app.models.project import Project
 from app.models.user import User
 
 
-class UserAuthorizationStrategy(
-    ProjectAuthorizationStrategy
-):
-
+class UserAuthorizationStrategy(ProjectAuthorizationStrategy):
     def can_access(
         self,
         project: Project,
@@ -30,3 +27,6 @@ class UserAuthorizationStrategy(
 
     def can_list_all(self, user: User) -> bool:
         return False
+
+    def can_manage_members(self, project: Project, user: User) -> bool:
+        return project.owner_id == user.id

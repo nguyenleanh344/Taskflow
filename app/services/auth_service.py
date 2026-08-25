@@ -1,19 +1,19 @@
 from datetime import datetime, timedelta, timezone
 
-from app.core.unit_of_work import UnitOfWork
+from app.core.config import settings
 from app.core.security import (
     create_access_token,
     create_refresh_token,
     hash_refresh_token,
     verify_password,
 )
-from app.core.config import settings
-from app.models.user import User
+from app.core.unit_of_work import UnitOfWork
 from app.exceptions.auth import (
     InactiveUserError,
     InvalidCredentialsError,
     InvalidRefreshTokenError,
 )
+from app.models.user import User
 from app.schemas.auth import LoginRequest
 
 
@@ -46,7 +46,6 @@ class AuthService:
         access_token = create_access_token(user.id)
 
         refresh_token = create_refresh_token()
-
         refresh_token_hash = hash_refresh_token(refresh_token)
 
         expires_at = datetime.now(timezone.utc) + timedelta(
@@ -67,38 +66,42 @@ class AuthService:
         self,
         refresh_token: str,
     ) -> tuple[str, str]:
+
         token_hash = hash_refresh_token(refresh_token)
-        stored_token = await self.refresh_repository.get_by_hash(
-            token_hash,
-        )
+
+        stored_token = await self.refresh_repository.get_by_hash(token_hash)
 
         if stored_token is None:
             raise InvalidRefreshTokenError
 
         now = datetime.now(timezone.utc)
+
         expires_at = stored_token.expires_at
 
-        # Some database drivers may return a naive datetime even when the
-        # column is configured with timezone=True.
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
         if stored_token.revoked_at is not None or expires_at <= now:
             raise InvalidRefreshTokenError
 
-        user = await self.session.get(User, stored_token.user_id)
+        user = await self.session.get(
+            User,
+            stored_token.user_id,
+        )
 
         if user is None or not user.is_active:
             raise InvalidRefreshTokenError
 
         new_access_token = create_access_token(user.id)
+
         new_refresh_token = create_refresh_token()
         new_refresh_token_hash = hash_refresh_token(new_refresh_token)
-        new_expires_at = now + timedelta(
-            days=settings.refresh_token_expire_days,
-        )
 
+        new_expires_at = now + timedelta(days=settings.refresh_token_expire_days)
+
+        # Rotate refresh token
         await self.refresh_repository.revoke(stored_token)
+
         await self.refresh_repository.create(
             token_hash=new_refresh_token_hash,
             user_id=user.id,
@@ -107,4 +110,7 @@ class AuthService:
 
         await self.uow.commit()
 
-        return new_access_token, new_refresh_token
+        return (
+            new_access_token,
+            new_refresh_token,
+        )

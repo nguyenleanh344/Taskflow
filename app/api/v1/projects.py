@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from app.core.dependencies import get_current_user
 from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 from app.models.user import User
+from app.schemas.pagination import PageResponse
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
 from app.services.project_service import ProjectService
 
@@ -31,13 +32,22 @@ async def create_project(
 
 @router.get(
     "",
-    response_model=list[ProjectResponse],
+    response_model=PageResponse[ProjectResponse],
 )
 async def list_projects(
+    page: int = Query(default=1, ge=1),
+    limit: int = Query(default=20, ge=1, le=100),
     current_user: User = Depends(get_current_user),
     service: ProjectService = Depends(get_project_service),
 ):
-    return await service.list_projects(current_user)
+    result = await service.list_projects(current_user, page=page, limit=limit)
+    return PageResponse(
+        items=result.items,
+        page=result.page,
+        limit=result.limit,
+        total=result.total,
+        has_next=result.has_next,
+    )
 
 
 @router.get(

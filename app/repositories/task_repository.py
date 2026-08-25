@@ -1,4 +1,6 @@
-from sqlalchemy import select
+from typing import Literal
+
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.task import Task
@@ -41,12 +43,21 @@ class TaskRepository:
         status: str | None = None,
         offset: int = 0,
         limit: int = 20,
+        sort_by: Literal["created_at", "updated_at", "title", "status"] = "created_at",
+        order: Literal["asc", "desc"] = "desc",
     ) -> list[Task]:
-
+        sort_columns = {
+            "created_at": Task.created_at,
+            "updated_at": Task.updated_at,
+            "title": Task.title,
+            "status": Task.status,
+        }
+        sort_column = sort_columns[sort_by]
+        ordering = sort_column.asc() if order == "asc" else sort_column.desc()
         query = (
             select(Task)
             .where(Task.project_id == project_id)
-            .order_by(Task.created_at.desc())
+            .order_by(ordering, Task.id)
             .offset(offset)
             .limit(limit)
         )
@@ -57,6 +68,21 @@ class TaskRepository:
         result = await self.session.execute(query)
 
         return list(result.scalars().all())
+
+    async def count_by_project(
+        self,
+        project_id: int,
+        status: str | None = None,
+    ) -> int:
+        query = (
+            select(func.count()).select_from(Task).where(Task.project_id == project_id)
+        )
+
+        if status is not None:
+            query = query.where(Task.status == status)
+
+        result = await self.session.execute(query)
+        return result.scalar_one()
 
     async def delete(self, task: Task) -> None:
         await self.session.delete(task)

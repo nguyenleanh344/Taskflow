@@ -16,7 +16,6 @@ class FakeSession:
 
 
 class UnitOfWorkTests(unittest.IsolatedAsyncioTestCase):
-
     async def test_repositories_share_the_same_session(self):
         session = FakeSession()
         uow = UnitOfWork(session)

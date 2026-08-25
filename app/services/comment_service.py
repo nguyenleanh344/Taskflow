@@ -1,4 +1,5 @@
 from sqlalchemy import select
+from app.core.authorization.factory import get_project_authorization_strategy
 from app.models.comment import Comment
 from app.models.project import Project
 from app.models.task import Task
@@ -173,7 +174,9 @@ class CommentService:
         if project is None:
             raise TaskNotFoundError
 
-        if project.owner_id != current_user.id and current_user.role != "admin":
+        strategy = get_project_authorization_strategy(current_user)
+
+        if not strategy.can_access(project, current_user):
             raise CommentForbiddenError
 
         return task

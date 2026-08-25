@@ -10,11 +10,11 @@ from alembic import context
 from app.core.config import settings
 from app.db.base import Base
 from app.models import (
-    User,
-    Project,
-    Task,
-    Comment,
-    RefreshToken,
+    User,  # noqa: F401 - imported to register SQLAlchemy metadata
+    Project,  # noqa: F401 - imported to register SQLAlchemy metadata
+    Task,  # noqa: F401 - imported to register SQLAlchemy metadata
+    Comment,  # noqa: F401 - imported to register SQLAlchemy metadata
+    RefreshToken,  # noqa: F401 - imported to register SQLAlchemy metadata
 )
 
 config = context.config

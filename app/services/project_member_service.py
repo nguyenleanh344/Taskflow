@@ -1,4 +1,5 @@
 from app.core.unit_of_work import UnitOfWork
+from app.core.authorization.factory import get_project_authorization_strategy
 from app.exceptions.resources import (
     MemberAlreadyExistsError,
     MemberNotFoundError,
@@ -9,6 +10,7 @@ from app.exceptions.resources import (
 from app.models.project import Project
 from app.models.project_member import ProjectMember
 from app.models.user import User
+from sqlalchemy.exc import IntegrityError
 
 
 class ProjectMemberService:
@@ -45,12 +47,28 @@ class ProjectMemberService:
         if existing is not None:
             raise MemberAlreadyExistsError
 
-        member = await self.repository.create(
-            project_id=project.id,
-            user_id=user.id,
-        )
+        try:
+            member = await self.repository.create(
+                project_id=project.id,
+                user_id=user.id,
+            )
 
-        await self.uow.commit()
+            await self.uow.commit()
+
+        except IntegrityError as exc:
+            await self.uow.rollback()
+
+            constraint_name = getattr(
+                exc.orig,
+                "constraint_name",
+                None,
+            )
+
+            if constraint_name == "uq_project_member":
+                raise MemberAlreadyExistsError from exc
+
+            raise
+
         await self.session.refresh(member)
 
         return member
@@ -108,7 +126,9 @@ class ProjectMemberService:
         if project is None:
             raise ProjectNotFoundError
 
-        if project.owner_id != current_user.id and current_user.role != "admin":
+        strategy = get_project_authorization_strategy(current_user)
+
+        if not strategy.can_manage_members(project, current_user):
             raise ProjectMemberForbiddenError
 
         return project

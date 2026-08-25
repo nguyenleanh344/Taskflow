@@ -5,7 +5,6 @@ from app.models.user import User
 
 
 class ProjectAuthorizationStrategy(ABC):
-
     @abstractmethod
     def can_access(
         self,
@@ -32,4 +31,8 @@ class ProjectAuthorizationStrategy(ABC):
 
     @abstractmethod
     def can_list_all(self, user: User) -> bool:
+        pass
+
+    @abstractmethod
+    def can_manage_members(self, project: Project, user: User) -> bool:
         pass

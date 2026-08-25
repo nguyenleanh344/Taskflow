@@ -1,4 +1,5 @@
 from app.core.authorization.factory import get_project_authorization_strategy
+from app.core.pagination import PageResult
 from app.core.unit_of_work import UnitOfWork
 from app.exceptions.resources import ProjectForbiddenError, ProjectNotFoundError
 from app.models.project import Project
@@ -27,13 +28,27 @@ class ProjectService:
 
         return project
 
-    async def list_projects(self, current_user: User) -> list[Project]:
+    async def list_projects(
+        self,
+        current_user: User,
+        page: int = 1,
+        limit: int = 20,
+    ) -> PageResult[Project]:
         strategy = get_project_authorization_strategy(current_user)
+        offset = (page - 1) * limit
 
         if strategy.can_list_all(current_user):
-            return await self.repository.list_all()
+            items = await self.repository.list_all(offset=offset, limit=limit)
+            total = await self.repository.count_all()
+        else:
+            items = await self.repository.list_by_owner(
+                current_user.id,
+                offset=offset,
+                limit=limit,
+            )
+            total = await self.repository.count_by_owner(current_user.id)
 
-        return await self.repository.list_by_owner(current_user.id)
+        return PageResult(items=items, page=page, limit=limit, total=total)
 
     async def get_project(
         self,
@@ -54,9 +69,7 @@ class ProjectService:
         if project is None:
             raise ProjectNotFoundError
 
-        strategy = get_project_authorization_strategy(
-            current_user
-        )
+        strategy = get_project_authorization_strategy(current_user)
 
         if not strategy.can_update(
             project,
@@ -64,9 +77,7 @@ class ProjectService:
         ):
             raise ProjectForbiddenError
 
-        for field, value in data.model_dump(
-            exclude_unset=True
-        ).items():
+        for field, value in data.model_dump(exclude_unset=True).items():
             setattr(project, field, value)
 
         await self.uow.commit()
@@ -84,9 +95,7 @@ class ProjectService:
         if project is None:
             raise ProjectNotFoundError
 
-        strategy = get_project_authorization_strategy(
-            current_user
-        )
+        strategy = get_project_authorization_strategy(current_user)
 
         if not strategy.can_delete(
             project,
@@ -97,7 +106,7 @@ class ProjectService:
         await self.repository.delete(project)
 
         await self.uow.commit()
-        
+
     async def _get_authorized_project(
         self,
         project_id: int,
@@ -108,9 +117,7 @@ class ProjectService:
         if project is None:
             raise ProjectNotFoundError
 
-        strategy = get_project_authorization_strategy(
-            current_user
-        )
+        strategy = get_project_authorization_strategy(current_user)
 
         if not strategy.can_access(
             project,

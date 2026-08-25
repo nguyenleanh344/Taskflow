@@ -1,4 +1,4 @@
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.project import Project
@@ -32,17 +32,40 @@ class ProjectRepository:
 
         return result.scalar_one_or_none()
 
-    async def list_all(self) -> list[Project]:
-        result = await self.session.execute(select(Project).order_by(Project.id))
-
-        return list(result.scalars().all())
-
-    async def list_by_owner(self, owner_id: int) -> list[Project]:
+    async def list_all(self, offset: int = 0, limit: int = 20) -> list[Project]:
         result = await self.session.execute(
-            select(Project).where(Project.owner_id == owner_id).order_by(Project.id)
+            select(Project).order_by(Project.id).offset(offset).limit(limit)
         )
 
         return list(result.scalars().all())
+
+    async def list_by_owner(
+        self,
+        owner_id: int,
+        offset: int = 0,
+        limit: int = 20,
+    ) -> list[Project]:
+        result = await self.session.execute(
+            select(Project)
+            .where(Project.owner_id == owner_id)
+            .order_by(Project.id)
+            .offset(offset)
+            .limit(limit)
+        )
+
+        return list(result.scalars().all())
+
+    async def count_all(self) -> int:
+        result = await self.session.execute(select(func.count()).select_from(Project))
+        return result.scalar_one()
+
+    async def count_by_owner(self, owner_id: int) -> int:
+        result = await self.session.execute(
+            select(func.count())
+            .select_from(Project)
+            .where(Project.owner_id == owner_id)
+        )
+        return result.scalar_one()
 
     async def delete(self, project: Project) -> None:
         await self.session.delete(project)
