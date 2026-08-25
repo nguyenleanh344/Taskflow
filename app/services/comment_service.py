@@ -1,11 +1,9 @@
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.models.comment import Comment
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
-from app.repositories.comment_repository import CommentRepository
+from app.core.unit_of_work import UnitOfWork
 from app.schemas.comment import CommentCreate, CommentUpdate
 
 
@@ -22,9 +20,10 @@ class TaskNotFoundError(Exception):
 
 
 class CommentService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-        self.repository = CommentRepository(session)
+    def __init__(self, uow: UnitOfWork):
+        self.uow = uow
+        self.session = uow.session
+        self.repository = uow.comments
 
     async def create_comment(
         self,
@@ -46,7 +45,7 @@ class CommentService:
             author_id=current_user.id,
         )
 
-        await self.session.commit()
+        await self.uow.commit()
         await self.session.refresh(comment)
 
         return comment
@@ -118,7 +117,7 @@ class CommentService:
 
         comment.content = data.content
 
-        await self.session.commit()
+        await self.uow.commit()
         await self.session.refresh(comment)
 
         return comment
@@ -150,7 +149,7 @@ class CommentService:
 
         await self.repository.delete(comment)
 
-        await self.session.commit()
+        await self.uow.commit()
 
     async def _authorize_task(
         self,

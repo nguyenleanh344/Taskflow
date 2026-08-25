@@ -1,10 +1,7 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.core.unit_of_work import UnitOfWork
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
-from app.repositories.project_repository import ProjectRepository
-from app.repositories.task_repository import TaskRepository
 from app.schemas.task import TaskCreate, TaskUpdate
 
 
@@ -21,10 +18,10 @@ class ProjectNotFoundError(Exception):
 
 
 class TaskService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-        self.repository = TaskRepository(session)
-        self.project_repository = ProjectRepository(session)
+    def __init__(self, uow: UnitOfWork):
+        self.uow = uow
+        self.repository = uow.tasks
+        self.project_repository = uow.projects
 
     async def create_task(
         self,
@@ -45,8 +42,8 @@ class TaskService:
             project_id=project.id,
         )
 
-        await self.session.commit()
-        await self.session.refresh(task)
+        await self.uow.commit()
+        await self.uow.session.refresh(task)
 
         return task
 
@@ -109,8 +106,8 @@ class TaskService:
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(task, field, value)
 
-        await self.session.commit()
-        await self.session.refresh(task)
+        await self.uow.commit()
+        await self.uow.session.refresh(task)
 
         return task
 
@@ -132,7 +129,7 @@ class TaskService:
 
         await self.repository.delete(task)
 
-        await self.session.commit()
+        await self.uow.commit()
 
     async def _get_authorized_project(
         self,

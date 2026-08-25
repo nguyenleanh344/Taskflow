@@ -1,8 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.database import get_db
 from app.core.dependencies import get_current_user
+from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
 from app.services.project_service import (
@@ -18,8 +16,8 @@ router = APIRouter(
 )
 
 
-def get_project_service(session: AsyncSession = Depends(get_db)) -> ProjectService:
-    return ProjectService(session)
+def get_project_service(uow: UnitOfWork = Depends(get_unit_of_work)) -> ProjectService:
+    return ProjectService(uow)
 
 
 def raise_project_http_error(error: Exception) -> None:

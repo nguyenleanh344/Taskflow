@@ -1,9 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.core.database import get_db
 from app.schemas.auth import LoginRequest, TokenResponse, RefreshTokenRequest
 from app.services.auth_service import AuthService
+from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 
 
 router = APIRouter(
@@ -18,9 +16,9 @@ router = APIRouter(
 )
 async def login(
     data: LoginRequest,
-    session: AsyncSession = Depends(get_db),
+    uow: UnitOfWork = Depends(get_unit_of_work),
 ):
-    service = AuthService(session)
+    service = AuthService(uow)
 
     try:
         access_token, refresh_token = await service.login(data)
@@ -49,9 +47,9 @@ async def login(
 )
 async def refresh_access_token(
     data: RefreshTokenRequest,
-    session: AsyncSession = Depends(get_db),
+    uow: UnitOfWork = Depends(get_unit_of_work),
 ):
-    service = AuthService(session)
+    service = AuthService(uow)
 
     try:
         access_token, refresh_token = await service.refresh_access_token(

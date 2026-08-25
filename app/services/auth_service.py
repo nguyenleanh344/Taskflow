@@ -1,7 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.core.unit_of_work import UnitOfWork
 from app.core.security import (
     create_access_token,
     create_refresh_token,
@@ -10,16 +9,15 @@ from app.core.security import (
 )
 from app.core.config import settings
 from app.models.user import User
-from app.repositories.refresh_token import RefreshTokenRepository
-from app.repositories.user import UserRepository
 from app.schemas.auth import LoginRequest
 
 
 class AuthService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-        self.user_repository = UserRepository(session)
-        self.refresh_repository = RefreshTokenRepository(session)
+    def __init__(self, uow: UnitOfWork):
+        self.uow = uow
+        self.session = uow.session
+        self.user_repository = uow.users
+        self.refresh_repository = uow.refresh_tokens
 
     async def login(
         self,
@@ -56,7 +54,7 @@ class AuthService:
             expires_at=expires_at,
         )
 
-        await self.session.commit()
+        await self.uow.commit()
 
         return access_token, refresh_token
 
@@ -102,6 +100,6 @@ class AuthService:
             expires_at=new_expires_at,
         )
 
-        await self.session.commit()
+        await self.uow.commit()
 
         return new_access_token, new_refresh_token

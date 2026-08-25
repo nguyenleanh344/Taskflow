@@ -1,12 +1,8 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.core.authorization.factory import get_project_authorization_strategy
+from app.core.unit_of_work import UnitOfWork
 from app.models.project import Project
 from app.models.user import User
-from app.repositories.project_repository import ProjectRepository
 from app.schemas.project import ProjectCreate, ProjectUpdate
-from app.core.authorization.factory import (
-    get_project_authorization_strategy,
-)
 
 
 class ProjectNotFoundError(Exception):
@@ -18,9 +14,9 @@ class ProjectForbiddenError(Exception):
 
 
 class ProjectService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-        self.repository = ProjectRepository(session)
+    def __init__(self, uow: UnitOfWork):
+        self.uow = uow
+        self.repository = uow.projects
 
     async def create_project(
         self,
@@ -33,8 +29,8 @@ class ProjectService:
             owner_id=current_user.id,
         )
 
-        await self.session.commit()
-        await self.session.refresh(project)
+        await self.uow.commit()
+        await self.uow.session.refresh(project)
 
         return project
 
@@ -80,8 +76,8 @@ class ProjectService:
         ).items():
             setattr(project, field, value)
 
-        await self.session.commit()
-        await self.session.refresh(project)
+        await self.uow.commit()
+        await self.uow.session.refresh(project)
 
         return project
 
@@ -107,7 +103,7 @@ class ProjectService:
 
         await self.repository.delete(project)
 
-        await self.session.commit()
+        await self.uow.commit()
         
     async def _get_authorized_project(
         self,

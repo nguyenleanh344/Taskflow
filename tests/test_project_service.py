@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 from app.models.project import Project
 from app.models.user import User
+from app.core.unit_of_work import UnitOfWork
 from app.schemas.project import ProjectCreate, ProjectUpdate
 from app.services.project_service import (
     ProjectForbiddenError,
@@ -64,13 +65,13 @@ class ProjectServiceTests(unittest.IsolatedAsyncioTestCase):
         FakeProjectRepository.projects = {}
         FakeProjectRepository.next_id = 1
         self.repository_patcher = patch(
-            "app.services.project_service.ProjectRepository",
+            "app.core.unit_of_work.ProjectRepository",
             FakeProjectRepository,
         )
         self.repository_patcher.start()
 
         self.session = FakeSession()
-        self.service = ProjectService(self.session)
+        self.service = ProjectService(UnitOfWork(self.session))
         self.user = User(id=1, role="user")
         self.other_user = User(id=2, role="user")
         self.admin = User(id=3, role="admin")

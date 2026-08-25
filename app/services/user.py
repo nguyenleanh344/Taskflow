@@ -1,14 +1,12 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.core.security import hash_password
-from app.repositories.user import UserRepository
+from app.core.unit_of_work import UnitOfWork
 from app.schemas.user import UserCreate
 
 
 class UserService:
-    def __init__(self, session: AsyncSession):
-        self.repository = UserRepository(session)
-        self.session = session
+    def __init__(self, uow: UnitOfWork):
+        self.uow = uow
+        self.repository = uow.users
 
     async def create_user(self, data: UserCreate):
 
@@ -25,8 +23,8 @@ class UserService:
             name=data.name,
         )
 
-        await self.session.commit()
+        await self.uow.commit()
 
-        await self.session.refresh(user)
+        await self.uow.session.refresh(user)
 
         return user

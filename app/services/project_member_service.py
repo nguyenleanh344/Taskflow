@@ -1,11 +1,7 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.core.unit_of_work import UnitOfWork
 from app.models.project import Project
 from app.models.project_member import ProjectMember
 from app.models.user import User
-from app.repositories.project_member_repository import (
-    ProjectMemberRepository,
-)
 
 
 class ProjectNotFoundError(Exception):
@@ -29,9 +25,10 @@ class ProjectMemberForbiddenError(Exception):
 
 
 class ProjectMemberService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
-        self.repository = ProjectMemberRepository(session)
+    def __init__(self, uow: UnitOfWork):
+        self.uow = uow
+        self.session = uow.session
+        self.repository = uow.project_members
 
     async def add_member(
         self,
@@ -66,7 +63,7 @@ class ProjectMemberService:
             user_id=user.id,
         )
 
-        await self.session.commit()
+        await self.uow.commit()
         await self.session.refresh(member)
 
         return member
@@ -108,7 +105,7 @@ class ProjectMemberService:
 
         await self.repository.delete(member)
 
-        await self.session.commit()
+        await self.uow.commit()
 
     async def _get_project(
         self,
