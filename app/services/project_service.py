@@ -1,16 +1,9 @@
 from app.core.authorization.factory import get_project_authorization_strategy
 from app.core.unit_of_work import UnitOfWork
+from app.exceptions.resources import ProjectForbiddenError, ProjectNotFoundError
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectUpdate
-
-
-class ProjectNotFoundError(Exception):
-    pass
-
-
-class ProjectForbiddenError(Exception):
-    pass
 
 
 class ProjectService:

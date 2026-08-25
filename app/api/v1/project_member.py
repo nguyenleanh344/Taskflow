@@ -1,16 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, status
 from app.core.dependencies import get_current_user
 from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 from app.models.user import User
 from app.schemas.project_member import ProjectMemberResponse
-from app.services.project_member_service import (
-    MemberAlreadyExistsError,
-    MemberNotFoundError,
-    ProjectMemberForbiddenError,
-    ProjectMemberService,
-    ProjectNotFoundError,
-    UserNotFoundError,
-)
+from app.services.project_member_service import ProjectMemberService
 
 
 router = APIRouter(
@@ -23,33 +16,6 @@ def get_project_member_service(
     uow: UnitOfWork = Depends(get_unit_of_work),
 ) -> ProjectMemberService:
     return ProjectMemberService(uow)
-
-
-def raise_member_http_error(error: Exception) -> None:
-
-    if isinstance(
-        error,
-        (
-            ProjectNotFoundError,
-            UserNotFoundError,
-            MemberNotFoundError,
-        ),
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resource not found",
-        )
-
-    if isinstance(error, MemberAlreadyExistsError):
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="User is already a member of this project",
-        )
-
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="You do not have permission to manage this project",
-    )
 
 
 @router.post(
@@ -65,20 +31,7 @@ async def add_member(
         get_project_member_service,
     ),
 ):
-    try:
-        return await service.add_member(
-            project_id,
-            user_id,
-            current_user,
-        )
-
-    except (
-        ProjectNotFoundError,
-        UserNotFoundError,
-        MemberAlreadyExistsError,
-        ProjectMemberForbiddenError,
-    ) as exc:
-        raise_member_http_error(exc)
+    return await service.add_member(project_id, user_id, current_user)
 
 
 @router.get(
@@ -92,17 +45,7 @@ async def list_members(
         get_project_member_service,
     ),
 ):
-    try:
-        return await service.list_members(
-            project_id,
-            current_user,
-        )
-
-    except (
-        ProjectNotFoundError,
-        ProjectMemberForbiddenError,
-    ) as exc:
-        raise_member_http_error(exc)
+    return await service.list_members(project_id, current_user)
 
 
 @router.delete(
@@ -117,18 +60,6 @@ async def remove_member(
         get_project_member_service,
     ),
 ):
-    try:
-        await service.remove_member(
-            project_id,
-            user_id,
-            current_user,
-        )
-
-    except (
-        ProjectNotFoundError,
-        MemberNotFoundError,
-        ProjectMemberForbiddenError,
-    ) as exc:
-        raise_member_http_error(exc)
+    await service.remove_member(project_id, user_id, current_user)
 
     return None

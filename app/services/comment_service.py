@@ -4,19 +4,12 @@ from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
 from app.core.unit_of_work import UnitOfWork
+from app.exceptions.resources import (
+    CommentForbiddenError,
+    CommentNotFoundError,
+    TaskNotFoundError,
+)
 from app.schemas.comment import CommentCreate, CommentUpdate
-
-
-class CommentNotFoundError(Exception):
-    pass
-
-
-class CommentForbiddenError(Exception):
-    pass
-
-
-class TaskNotFoundError(Exception):
-    pass
 
 
 class CommentService:

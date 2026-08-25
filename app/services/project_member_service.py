@@ -1,27 +1,14 @@
 from app.core.unit_of_work import UnitOfWork
+from app.exceptions.resources import (
+    MemberAlreadyExistsError,
+    MemberNotFoundError,
+    ProjectMemberForbiddenError,
+    ProjectNotFoundError,
+    UserNotFoundError,
+)
 from app.models.project import Project
 from app.models.project_member import ProjectMember
 from app.models.user import User
-
-
-class ProjectNotFoundError(Exception):
-    pass
-
-
-class UserNotFoundError(Exception):
-    pass
-
-
-class MemberAlreadyExistsError(Exception):
-    pass
-
-
-class MemberNotFoundError(Exception):
-    pass
-
-
-class ProjectMemberForbiddenError(Exception):
-    pass
 
 
 class ProjectMemberService:

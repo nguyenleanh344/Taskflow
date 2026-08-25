@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 
+from app.exceptions.handlers import register_exception_handlers
 from app.api.v1.auth import router as auth_router
 from app.api.v1.projects import router as projects_router
 from app.api.v1.users import router as users_router
@@ -11,6 +12,8 @@ app = FastAPI(
     title="Backend Lab",
     version="0.1.0",
 )
+
+register_exception_handlers(app)
 
 
 @app.get("/health")

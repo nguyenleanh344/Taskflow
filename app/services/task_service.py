@@ -1,20 +1,13 @@
 from app.core.unit_of_work import UnitOfWork
+from app.exceptions.resources import (
+    ProjectNotFoundError,
+    TaskForbiddenError,
+    TaskNotFoundError,
+)
 from app.models.project import Project
 from app.models.task import Task
 from app.models.user import User
 from app.schemas.task import TaskCreate, TaskUpdate
-
-
-class TaskNotFoundError(Exception):
-    pass
-
-
-class TaskForbiddenError(Exception):
-    pass
-
-
-class ProjectNotFoundError(Exception):
-    pass
 
 
 class TaskService:

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Body, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Body, Depends, Response, status
 from app.core.dependencies import get_current_user
 from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 from app.models.user import User
@@ -7,12 +7,7 @@ from app.schemas.comment import (
     CommentResponse,
     CommentUpdate,
 )
-from app.services.comment_service import (
-    CommentForbiddenError,
-    CommentNotFoundError,
-    CommentService,
-    TaskNotFoundError,
-)
+from app.services.comment_service import CommentService
 
 
 router = APIRouter(
@@ -27,22 +22,6 @@ def get_comment_service(
     return CommentService(uow)
 
 
-def raise_comment_http_error(error: Exception) -> None:
-    if isinstance(
-        error,
-        (CommentNotFoundError, TaskNotFoundError),
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resource not found",
-        )
-
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="You do not have permission to access this resource",
-    )
-
-
 @router.post(
     "",
     response_model=CommentResponse,
@@ -55,19 +34,12 @@ async def create_comment(
     current_user: User = Depends(get_current_user),
     service: CommentService = Depends(get_comment_service),
 ):
-    try:
-        return await service.create_comment(
-            project_id,
-            task_id,
-            data,
-            current_user,
-        )
-
-    except (
-        CommentForbiddenError,
-        TaskNotFoundError,
-    ) as exc:
-        raise_comment_http_error(exc)
+    return await service.create_comment(
+        project_id,
+        task_id,
+        data,
+        current_user,
+    )
 
 
 @router.get(
@@ -80,18 +52,11 @@ async def list_comments(
     current_user: User = Depends(get_current_user),
     service: CommentService = Depends(get_comment_service),
 ):
-    try:
-        return await service.list_comments(
-            project_id,
-            task_id,
-            current_user,
-        )
-
-    except (
-        CommentForbiddenError,
-        TaskNotFoundError,
-    ) as exc:
-        raise_comment_http_error(exc)
+    return await service.list_comments(
+        project_id,
+        task_id,
+        current_user,
+    )
 
 
 @router.get(
@@ -105,20 +70,12 @@ async def get_comment(
     current_user: User = Depends(get_current_user),
     service: CommentService = Depends(get_comment_service),
 ):
-    try:
-        return await service.get_comment(
-            project_id,
-            task_id,
-            comment_id,
-            current_user,
-        )
-
-    except (
-        CommentNotFoundError,
-        CommentForbiddenError,
-        TaskNotFoundError,
-    ) as exc:
-        raise_comment_http_error(exc)
+    return await service.get_comment(
+        project_id,
+        task_id,
+        comment_id,
+        current_user,
+    )
 
 
 @router.patch(
@@ -133,21 +90,13 @@ async def update_comment(
     current_user: User = Depends(get_current_user),
     service: CommentService = Depends(get_comment_service),
 ):
-    try:
-        return await service.update_comment(
-            project_id,
-            task_id,
-            comment_id,
-            data,
-            current_user,
-        )
-
-    except (
-        CommentNotFoundError,
-        CommentForbiddenError,
-        TaskNotFoundError,
-    ) as exc:
-        raise_comment_http_error(exc)
+    return await service.update_comment(
+        project_id,
+        task_id,
+        comment_id,
+        data,
+        current_user,
+    )
 
 
 @router.delete(
@@ -161,20 +110,12 @@ async def delete_comment(
     current_user: User = Depends(get_current_user),
     service: CommentService = Depends(get_comment_service),
 ):
-    try:
-        await service.delete_comment(
-            project_id,
-            task_id,
-            comment_id,
-            current_user,
-        )
-
-    except (
-        CommentNotFoundError,
-        CommentForbiddenError,
-        TaskNotFoundError,
-    ) as exc:
-        raise_comment_http_error(exc)
+    await service.delete_comment(
+        project_id,
+        task_id,
+        comment_id,
+        current_user,
+    )
 
     return Response(
         status_code=status.HTTP_204_NO_CONTENT,

@@ -3,12 +3,7 @@ from app.core.dependencies import get_current_user
 from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 from app.models.user import User
 from app.schemas.task import TaskCreate, TaskResponse, TaskUpdate
-from app.services.task_service import (
-    ProjectNotFoundError,
-    TaskForbiddenError,
-    TaskNotFoundError,
-    TaskService,
-)
+from app.services.task_service import TaskService
 
 
 router = APIRouter(
@@ -23,23 +18,6 @@ def get_task_service(
     return TaskService(uow)
 
 
-def raise_task_http_error(error: Exception) -> None:
-
-    if isinstance(
-        error,
-        (TaskNotFoundError, ProjectNotFoundError),
-    ):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Resource not found",
-        )
-
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="You do not have permission to access this resource",
-    )
-
-
 @router.post(
     "",
     response_model=TaskResponse,
@@ -51,17 +29,11 @@ async def create_task(
     current_user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
-    try:
-        return await service.create_task(
-            project_id,
-            data,
-            current_user,
-        )
-    except (
-        ProjectNotFoundError,
-        TaskForbiddenError,
-    ) as exc:
-        raise_task_http_error(exc)
+    return await service.create_task(
+        project_id,
+        data,
+        current_user,
+    )
 
 
 @router.get(
@@ -86,19 +58,13 @@ async def list_tasks(
     current_user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
-    try:
-        return await service.list_tasks(
-            project_id=project_id,
-            current_user=current_user,
-            status=status_filter,
-            offset=offset,
-            limit=limit,
-        )
-    except (
-        ProjectNotFoundError,
-        TaskForbiddenError,
-    ) as exc:
-        raise_task_http_error(exc)
+    return await service.list_tasks(
+        project_id=project_id,
+        current_user=current_user,
+        status=status_filter,
+        offset=offset,
+        limit=limit,
+    )
 
 
 @router.get(
@@ -111,25 +77,15 @@ async def get_task(
     current_user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
-    try:
-        task = await service.get_task(
-            task_id,
-            current_user,
+    task = await service.get_task(task_id, current_user)
+
+    if task.project_id != project_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
         )
 
-        if task.project_id != project_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Task not found",
-            )
-
-        return task
-
-    except (
-        TaskNotFoundError,
-        TaskForbiddenError,
-    ) as exc:
-        raise_task_http_error(exc)
+    return task
 
 
 @router.patch(
@@ -143,26 +99,15 @@ async def update_task(
     current_user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
-    try:
-        task = await service.update_task(
-            task_id,
-            data,
-            current_user,
+    task = await service.update_task(task_id, data, current_user)
+
+    if task.project_id != project_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
         )
 
-        if task.project_id != project_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Task not found",
-            )
-
-        return task
-
-    except (
-        TaskNotFoundError,
-        TaskForbiddenError,
-    ) as exc:
-        raise_task_http_error(exc)
+    return task
 
 
 @router.delete(
@@ -175,27 +120,14 @@ async def delete_task(
     current_user: User = Depends(get_current_user),
     service: TaskService = Depends(get_task_service),
 ):
-    try:
-        task = await service.get_task(
-            task_id,
-            current_user,
+    task = await service.get_task(task_id, current_user)
+
+    if task.project_id != project_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task not found",
         )
 
-        if task.project_id != project_id:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Task not found",
-            )
-
-        await service.delete_task(
-            task_id,
-            current_user,
-        )
-
-    except (
-        TaskNotFoundError,
-        TaskForbiddenError,
-    ) as exc:
-        raise_task_http_error(exc)
+    await service.delete_task(task_id, current_user)
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

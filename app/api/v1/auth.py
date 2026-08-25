@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from app.schemas.auth import LoginRequest, TokenResponse, RefreshTokenRequest
 from app.services.auth_service import AuthService
 from app.core.unit_of_work import UnitOfWork, get_unit_of_work
@@ -20,20 +20,7 @@ async def login(
 ):
     service = AuthService(uow)
 
-    try:
-        access_token, refresh_token = await service.login(data)
-
-    except ValueError as exc:
-        if str(exc) == "User is inactive":
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail=str(exc),
-            )
-
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
-        )
+    access_token, refresh_token = await service.login(data)
 
     return TokenResponse(
         access_token=access_token,
@@ -51,16 +38,9 @@ async def refresh_access_token(
 ):
     service = AuthService(uow)
 
-    try:
-        access_token, refresh_token = await service.refresh_access_token(
-            data.refresh_token
-        )
-
-    except ValueError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid refresh token",
-        )
+    access_token, refresh_token = await service.refresh_access_token(
+        data.refresh_token
+    )
 
     return TokenResponse(
         access_token=access_token,

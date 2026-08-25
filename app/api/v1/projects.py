@@ -1,13 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Response, status
 from app.core.dependencies import get_current_user
 from app.core.unit_of_work import UnitOfWork, get_unit_of_work
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
-from app.services.project_service import (
-    ProjectForbiddenError,
-    ProjectNotFoundError,
-    ProjectService,
-)
+from app.services.project_service import ProjectService
 
 
 router = APIRouter(
@@ -18,19 +14,6 @@ router = APIRouter(
 
 def get_project_service(uow: UnitOfWork = Depends(get_unit_of_work)) -> ProjectService:
     return ProjectService(uow)
-
-
-def raise_project_http_error(error: Exception) -> None:
-    if isinstance(error, ProjectNotFoundError):
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    raise HTTPException(
-        status_code=status.HTTP_403_FORBIDDEN,
-        detail="You do not have permission to access this project",
-    )
 
 
 @router.post(
@@ -66,10 +49,7 @@ async def get_project(
     current_user: User = Depends(get_current_user),
     service: ProjectService = Depends(get_project_service),
 ):
-    try:
-        return await service.get_project(project_id, current_user)
-    except (ProjectNotFoundError, ProjectForbiddenError) as exc:
-        raise_project_http_error(exc)
+    return await service.get_project(project_id, current_user)
 
 
 @router.patch(
@@ -82,10 +62,7 @@ async def update_project(
     current_user: User = Depends(get_current_user),
     service: ProjectService = Depends(get_project_service),
 ):
-    try:
-        return await service.update_project(project_id, data, current_user)
-    except (ProjectNotFoundError, ProjectForbiddenError) as exc:
-        raise_project_http_error(exc)
+    return await service.update_project(project_id, data, current_user)
 
 
 @router.delete(
@@ -97,9 +74,6 @@ async def delete_project(
     current_user: User = Depends(get_current_user),
     service: ProjectService = Depends(get_project_service),
 ):
-    try:
-        await service.delete_project(project_id, current_user)
-    except (ProjectNotFoundError, ProjectForbiddenError) as exc:
-        raise_project_http_error(exc)
+    await service.delete_project(project_id, current_user)
 
     return Response(status_code=status.HTTP_204_NO_CONTENT)

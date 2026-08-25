@@ -9,6 +9,11 @@ from app.core.security import (
 )
 from app.core.config import settings
 from app.models.user import User
+from app.exceptions.auth import (
+    InactiveUserError,
+    InvalidCredentialsError,
+    InvalidRefreshTokenError,
+)
 from app.schemas.auth import LoginRequest
 
 
@@ -27,16 +32,16 @@ class AuthService:
         user = await self.user_repository.get_by_email(data.email)
 
         if user is None:
-            raise ValueError("Invalid credentials")
+            raise InvalidCredentialsError
 
         if not verify_password(
             data.password,
             user.password_hash,
         ):
-            raise ValueError("Invalid credentials")
+            raise InvalidCredentialsError
 
         if not user.is_active:
-            raise ValueError("User is inactive")
+            raise InactiveUserError
 
         access_token = create_access_token(user.id)
 
@@ -68,7 +73,7 @@ class AuthService:
         )
 
         if stored_token is None:
-            raise ValueError("Invalid refresh token")
+            raise InvalidRefreshTokenError
 
         now = datetime.now(timezone.utc)
         expires_at = stored_token.expires_at
@@ -79,12 +84,12 @@ class AuthService:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
 
         if stored_token.revoked_at is not None or expires_at <= now:
-            raise ValueError("Invalid refresh token")
+            raise InvalidRefreshTokenError
 
         user = await self.session.get(User, stored_token.user_id)
 
         if user is None or not user.is_active:
-            raise ValueError("Invalid refresh token")
+            raise InvalidRefreshTokenError
 
         new_access_token = create_access_token(user.id)
         new_refresh_token = create_refresh_token()
