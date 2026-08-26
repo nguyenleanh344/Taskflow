@@ -1,11 +1,11 @@
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import TypeVar
 
 T = TypeVar("T")
 
 
 @dataclass(slots=True)
-class PageResult(Generic[T]):
+class PageResult[T]:
     items: list[T]
     page: int
     limit: int

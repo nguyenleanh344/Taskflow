@@ -1,15 +1,14 @@
 import unittest
-from unittest.mock import patch
+from datetime import datetime, timezone
+from unittest.mock import ANY, AsyncMock, patch
 
+from app.core.unit_of_work import UnitOfWork
+from app.exceptions.resources import ProjectForbiddenError, ProjectNotFoundError
 from app.models.project import Project
 from app.models.user import User
-from app.core.unit_of_work import UnitOfWork
 from app.schemas.project import ProjectCreate, ProjectUpdate
-from app.services.project_service import (
-    ProjectForbiddenError,
-    ProjectNotFoundError,
-    ProjectService,
-)
+from app.services.project_service import ProjectService
+from redis.exceptions import RedisError
 
 
 class FakeSession:
@@ -190,6 +189,96 @@ class ProjectServiceTests(unittest.IsolatedAsyncioTestCase):
     async def test_missing_project_raises_not_found(self):
         with self.assertRaises(ProjectNotFoundError):
             await self.service.get_project(999, self.user)
+
+
+class ProjectServiceCacheTests(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.session = FakeSession()
+        self.repository = AsyncMock()
+        self.cache = AsyncMock()
+        self.service = ProjectService(UnitOfWork(self.session), self.cache)
+        self.service.repository = self.repository
+        self.user = User(id=1, role="user")
+        self.other_user = User(id=2, role="user")
+        self.project = Project(
+            id=1,
+            name="TaskFlow",
+            description="Backend learning project",
+            owner_id=1,
+            created_at=datetime.now(timezone.utc),
+        )
+
+    async def test_get_project_cache_miss_loads_from_repository_and_caches(self):
+        self.cache.get_json.return_value = None
+        self.repository.get_by_id.return_value = self.project
+
+        result = await self.service.get_project(self.project.id, self.user)
+
+        self.assertEqual(result.id, self.project.id)
+        self.cache.get_json.assert_awaited_once_with("project:1")
+        self.repository.get_by_id.assert_awaited_once_with(1)
+        self.cache.set_json.assert_awaited_once_with(
+            "project:1",
+            ANY,
+            ttl_seconds=ANY,
+        )
+
+    async def test_get_project_cache_hit_does_not_query_repository(self):
+        self.cache.get_json.return_value = {
+            "id": 1,
+            "name": "TaskFlow",
+            "description": "Backend learning project",
+            "owner_id": 1,
+            "created_at": self.project.created_at.isoformat(),
+        }
+
+        result = await self.service.get_project(self.project.id, self.user)
+
+        self.assertEqual(result.id, self.project.id)
+        self.repository.get_by_id.assert_not_awaited()
+        self.cache.set_json.assert_not_awaited()
+
+    async def test_cached_project_still_requires_authorization(self):
+        self.cache.get_json.return_value = {
+            "id": 1,
+            "name": "TaskFlow",
+            "description": "Backend learning project",
+            "owner_id": 1,
+            "created_at": self.project.created_at.isoformat(),
+        }
+
+        with self.assertRaises(ProjectForbiddenError):
+            await self.service.get_project(self.project.id, self.other_user)
+
+        self.repository.get_by_id.assert_not_awaited()
+
+    async def test_update_project_invalidates_cache(self):
+        self.repository.get_by_id.return_value = self.project
+
+        await self.service.update_project(
+            self.project.id,
+            ProjectUpdate(name="Updated"),
+            self.user,
+        )
+
+        self.cache.delete.assert_awaited_once_with("project:1")
+
+    async def test_delete_project_invalidates_cache(self):
+        self.repository.get_by_id.return_value = self.project
+
+        await self.service.delete_project(self.project.id, self.user)
+
+        self.repository.delete.assert_awaited_once_with(self.project)
+        self.cache.delete.assert_awaited_once_with("project:1")
+
+    async def test_redis_failure_falls_back_to_database(self):
+        self.cache.get_json.side_effect = RedisError()
+        self.repository.get_by_id.return_value = self.project
+
+        result = await self.service.get_project(self.project.id, self.user)
+
+        self.assertEqual(result.id, self.project.id)
+        self.repository.get_by_id.assert_awaited_once_with(1)
 
 
 if __name__ == "__main__":

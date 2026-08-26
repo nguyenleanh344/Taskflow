@@ -5,7 +5,7 @@ from app.models.user import User
 from app.schemas.pagination import PageResponse
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
 from app.services.project_service import ProjectService
-
+from app.cache.redis import RedisCache, get_redis
 
 router = APIRouter(
     prefix="/projects",
@@ -13,8 +13,11 @@ router = APIRouter(
 )
 
 
-def get_project_service(uow: UnitOfWork = Depends(get_unit_of_work)) -> ProjectService:
-    return ProjectService(uow)
+def get_project_service(
+    uow: UnitOfWork = Depends(get_unit_of_work),
+    cache: RedisCache = Depends(get_redis),
+) -> ProjectService:
+    return ProjectService(uow, cache)
 
 
 @router.post(

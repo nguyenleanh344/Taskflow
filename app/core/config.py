@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
 
+    redis_url: str = "redis://localhost:6379/0"
+    project_cache_ttl_seconds: int = 300
+
     model_config = SettingsConfigDict(
         env_file=".env",
         extra="ignore",

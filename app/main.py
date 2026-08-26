@@ -8,6 +8,7 @@ from app.api.v1.tasks import router as tasks_router
 from app.api.v1.comments import router as comments_router
 from app.api.v1.project_member import router as project_members_router
 
+
 app = FastAPI(
     title="Backend Lab",
     version="0.1.0",

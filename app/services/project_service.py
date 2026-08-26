@@ -5,12 +5,24 @@ from app.exceptions.resources import ProjectForbiddenError, ProjectNotFoundError
 from app.models.project import Project
 from app.models.user import User
 from app.schemas.project import ProjectCreate, ProjectUpdate
+from datetime import datetime
+
+from redis.exceptions import RedisError
+
+from app.cache.keys import project_key
+from app.cache.redis import RedisCache
+from app.core.config import settings
 
 
 class ProjectService:
-    def __init__(self, uow: UnitOfWork):
+    def __init__(
+        self,
+        uow: UnitOfWork,
+        cache: RedisCache | None = None,
+    ):
         self.uow = uow
         self.repository = uow.projects
+        self.cache = cache
 
     async def create_project(
         self,
@@ -58,6 +70,15 @@ class ProjectService:
         project = await self._get_authorized_project(project_id, current_user)
         return project
 
+    async def _invalidate_project_cache(
+        self,
+        project_id: int,
+    ) -> None:
+        if self.cache is None:
+            return
+
+        await self.cache.delete(project_key(project_id))
+
     async def update_project(
         self,
         project_id: int,
@@ -83,6 +104,8 @@ class ProjectService:
         await self.uow.commit()
         await self.uow.session.refresh(project)
 
+        await self._invalidate_project_cache(project_id)
+
         return project
 
     async def delete_project(
@@ -104,19 +127,44 @@ class ProjectService:
             raise ProjectForbiddenError
 
         await self.repository.delete(project)
-
         await self.uow.commit()
+
+        await self._invalidate_project_cache(project_id)
 
     async def _get_authorized_project(
         self,
         project_id: int,
         current_user: User,
     ) -> Project:
-        project = await self.repository.get_by_id(project_id)
+        project = None
 
+        # 1. Try cache
+        if self.cache is not None:
+            try:
+                cached = await self.cache.get_json(project_key(project_id))
+            except RedisError:
+                cached = None
+
+            if cached is not None:
+                project = Project(
+                    id=cached["id"],
+                    name=cached["name"],
+                    description=cached.get("description"),
+                    owner_id=cached["owner_id"],
+                    created_at=datetime.fromisoformat(cached["created_at"]),
+                )
+
+        # 2. Cache miss → database
         if project is None:
-            raise ProjectNotFoundError
+            project = await self.repository.get_by_id(project_id)
 
+            if project is None:
+                raise ProjectNotFoundError
+
+            # 3. Store in cache
+            await self._cache_project(project)
+
+        # 4. Authorization vẫn phải được thực hiện
         strategy = get_project_authorization_strategy(current_user)
 
         if not strategy.can_access(
@@ -126,3 +174,22 @@ class ProjectService:
             raise ProjectForbiddenError
 
         return project
+
+    async def _cache_project(
+        self,
+        project: Project,
+    ) -> None:
+        if self.cache is None:
+            return
+
+        await self.cache.set_json(
+            project_key(project.id),
+            {
+                "id": project.id,
+                "name": project.name,
+                "description": project.description,
+                "owner_id": project.owner_id,
+                "created_at": project.created_at.isoformat(),
+            },
+            ttl_seconds=settings.project_cache_ttl_seconds,
+        )
