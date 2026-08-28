@@ -78,11 +78,11 @@ class TaskService:
         task_id: int,
         current_user: User,
     ) -> Task:
-        await self._get_authorized_project(project_id, current_user)
+        project = await self._get_authorized_project(project_id, current_user)
 
-        task = await self.repository.get_by_id(task_id)
+        task = await self.repository.get_by_id(task_id, project.id)
 
-        if task is None or task.project_id != project_id:
+        if task is None:
             raise TaskNotFoundError
 
         return task
@@ -94,11 +94,11 @@ class TaskService:
         data: TaskUpdate,
         current_user: User,
     ) -> Task:
-        await self._get_authorized_project(project_id, current_user)
+        project = await self._get_authorized_project(project_id, current_user)
 
-        task = await self.repository.get_by_id(task_id)
+        task = await self.repository.get_by_id(task_id, project.id)
 
-        if task is None or task.project_id != project_id:
+        if task is None:
             raise TaskNotFoundError
 
         for field, value in data.model_dump(exclude_unset=True).items():
@@ -115,11 +115,11 @@ class TaskService:
         task_id: int,
         current_user: User,
     ) -> None:
-        await self._get_authorized_project(project_id, current_user)
+        project = await self._get_authorized_project(project_id, current_user)
 
-        task = await self.repository.get_by_id(task_id)
+        task = await self.repository.get_by_id(task_id, project.id)
 
-        if task is None or task.project_id != project_id:
+        if task is None:
             raise TaskNotFoundError
 
         await self.repository.delete(task)

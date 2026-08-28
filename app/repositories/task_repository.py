@@ -32,8 +32,14 @@ class TaskRepository:
     async def get_by_id(
         self,
         task_id: int,
+        project_id: int | None = None,
     ) -> Task | None:
-        result = await self.session.execute(select(Task).where(Task.id == task_id))
+        query = select(Task).where(Task.id == task_id)
+
+        if project_id is not None:
+            query = query.where(Task.project_id == project_id)
+
+        result = await self.session.execute(query)
 
         return result.scalar_one_or_none()
 
