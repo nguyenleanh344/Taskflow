@@ -1,0 +1,35 @@
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: backend
+      POSTGRES_PASSWORD: backend
+      POSTGRES_DB: backend_lab
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U backend -d backend_lab"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:8-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
+  test:
+    build:
+      context: .
+      dockerfile: docker/ci/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://backend:backend@postgres:5432/backend_lab
+      REDIS_URL: redis://redis:6379/0
+      JWT_SECRET_KEY: ci-only-secret
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: sh -c "alembic upgrade head && pytest -q tests/integration"

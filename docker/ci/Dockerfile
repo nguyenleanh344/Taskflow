@@ -1,0 +1,11 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+COPY pyproject.toml .
+COPY app ./app
+COPY migrations ./migrations
+COPY tests ./tests
+COPY alembic.ini .
+
+RUN pip install --no-cache-dir ".[dev]"

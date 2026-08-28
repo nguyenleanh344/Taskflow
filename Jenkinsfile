@@ -16,9 +16,15 @@ pipeline {
             }
         }
 
-        stage('Test') {
+        stage('Unit Test') {
             steps {
-                sh './venv/bin/pytest -q'
+                sh './venv/bin/pytest -q tests --ignore=tests/integration'
+            }
+        }
+
+        stage('Integration Test') {
+            steps {
+                sh 'docker compose -p taskflow-ci -f docker-compose.ci.yml up --build --abort-on-container-exit --exit-code-from test test'
             }
         }
 
@@ -26,6 +32,13 @@ pipeline {
             steps {
                 sh 'docker build -t taskflow-api:latest .'
             }
+        }
+
+    }
+
+    post {
+        always {
+            sh 'docker compose -p taskflow-ci -f docker-compose.ci.yml down -v --remove-orphans || true'
         }
     }
 }
