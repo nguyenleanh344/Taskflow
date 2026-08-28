@@ -29,6 +29,23 @@ pipeline {
             }
         }
 
+        stage('Docker Hub Login') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKERHUB_USERNAME',
+                    passwordVariable: 'DOCKERHUB_TOKEN'
+                )]) {
+                    sh '''
+                        set +x
+                        echo "$DOCKERHUB_TOKEN" | docker login \
+                            --username "$DOCKERHUB_USERNAME" \
+                            --password-stdin
+                    '''
+                }
+            }
+        }
+
         stage('Integration Test') {
             steps {
                 sh 'docker compose -p taskflow-ci -f docker-compose.ci.yml up --build --abort-on-container-exit --exit-code-from test test'
@@ -68,6 +85,7 @@ pipeline {
         always {
             archiveArtifacts artifacts: 'coverage.xml', allowEmptyArchive: true
             sh 'docker compose -p taskflow-ci -f docker-compose.ci.yml down -v --remove-orphans || true'
+            sh 'docker logout || true'
         }
     }
 }
