@@ -9,6 +9,36 @@ jobs:
   test-and-format:
     runs-on: ubuntu-latest
 
+    env:
+      DATABASE_URL: postgresql+asyncpg://backend:backend@localhost:5432/backend_lab
+      REDIS_URL: redis://localhost:6379/0
+      JWT_SECRET_KEY: ci-only-secret
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: backend
+          POSTGRES_PASSWORD: backend
+          POSTGRES_DB: backend_lab
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U backend -d backend_lab"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 10
+
+      redis:
+        image: redis:8-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 3s
+          --health-timeout 3s
+          --health-retries 10
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -25,5 +55,14 @@ jobs:
       - name: Check code formatting
         run: ruff format --check .
 
-      - name: Run tests
-        run: pytest
+      - name: Check lint
+        run: ruff check .
+
+      - name: Run database migrations
+        run: alembic upgrade head
+
+      - name: Run unit tests
+        run: pytest -q tests --ignore=tests/integration
+
+      - name: Run integration tests
+        run: pytest -q tests/integration
