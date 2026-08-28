@@ -22,6 +22,13 @@ pipeline {
             }
         }
 
+        stage('Check Docker') {
+            steps {
+                sh 'docker version'
+                sh 'docker compose version'
+            }
+        }
+
         stage('Integration Test') {
             steps {
                 sh 'docker compose -p taskflow-ci -f docker-compose.ci.yml up --build --abort-on-container-exit --exit-code-from test test'
