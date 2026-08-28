@@ -5,7 +5,7 @@ pipeline {
         stage('Install') {
             steps {
                 sh 'python3 -m venv venv'
-                sh './venv/bin/pip install -e .[dev]'
+                sh "./venv/bin/pip install -e '.[dev]'"
             }
         }
 
