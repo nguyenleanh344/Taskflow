@@ -62,7 +62,13 @@ jobs:
         run: alembic upgrade head
 
       - name: Run unit tests
-        run: pytest -q tests --ignore=tests/integration
+        run: pytest -q tests --ignore=tests/integration --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage.xml
 
       - name: Run integration tests
         run: pytest -q tests/integration

@@ -18,7 +18,7 @@ pipeline {
 
         stage('Unit Test') {
             steps {
-                sh './venv/bin/pytest -q tests --ignore=tests/integration'
+                sh './venv/bin/pytest -q tests --ignore=tests/integration --cov=app --cov-report=term-missing --cov-report=xml:coverage.xml'
             }
         }
 
@@ -37,7 +37,28 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                sh 'docker build -t taskflow-api:latest .'
+                sh 'docker build -t taskflow-api:${BUILD_NUMBER} -t taskflow-api:latest .'
+            }
+        }
+
+        stage('Push Docker Image') {
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-creds',
+                    usernameVariable: 'DOCKERHUB_USERNAME',
+                    passwordVariable: 'DOCKERHUB_TOKEN'
+                )]) {
+                    sh '''
+                        set +x
+                        IMAGE="$DOCKERHUB_USERNAME/taskflow-api"
+                        echo "$DOCKERHUB_TOKEN" | docker login --username "$DOCKERHUB_USERNAME" --password-stdin
+                        docker tag "taskflow-api:$BUILD_NUMBER" "$IMAGE:$BUILD_NUMBER"
+                        docker tag taskflow-api:latest "$IMAGE:latest"
+                        docker push "$IMAGE:$BUILD_NUMBER"
+                        docker push "$IMAGE:latest"
+                        docker logout
+                    '''
+                }
             }
         }
 
@@ -45,6 +66,7 @@ pipeline {
 
     post {
         always {
+            archiveArtifacts artifacts: 'coverage.xml', allowEmptyArchive: true
             sh 'docker compose -p taskflow-ci -f docker-compose.ci.yml down -v --remove-orphans || true'
         }
     }
