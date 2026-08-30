@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: taskflow-api
+  namespace: taskflow
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: taskflow-api
+  template:
+    metadata:
+      labels:
+        app: taskflow-api
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: postgres:17
+          command: ["sh", "-c"]
+          args:
+            - until pg_isready -h postgres -U backend -d backend_lab; do echo waiting for postgres; sleep 2; done
+        - name: run-migrations
+          image: ourea0344/taskflow-api:latest
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: taskflow-secrets
+                  key: DATABASE_URL
+          command: ["alembic", "upgrade", "head"]
+      containers:
+        - name: api
+          image: ourea0344/taskflow-api:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: taskflow-secrets
+                  key: DATABASE_URL
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: taskflow-secrets
+                  key: JWT_SECRET_KEY
+            - name: REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: taskflow-config
+                  key: REDIS_URL
+            - name: JWT_ALGORITHM
+              valueFrom:
+                configMapKeyRef:
+                  name: taskflow-config
+                  key: JWT_ALGORITHM
+            - name: ACCESS_TOKEN_EXPIRE_MINUTES
+              valueFrom:
+                configMapKeyRef:
+                  name: taskflow-config
+                  key: ACCESS_TOKEN_EXPIRE_MINUTES
+            - name: REFRESH_TOKEN_EXPIRE_DAYS
+              valueFrom:
+                configMapKeyRef:
+                  name: taskflow-config
+                  key: REFRESH_TOKEN_EXPIRE_DAYS
+            - name: PROJECT_CACHE_TTL_SECONDS
+              valueFrom:
+                configMapKeyRef:
+                  name: taskflow-config
+                  key: PROJECT_CACHE_TTL_SECONDS
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 10
