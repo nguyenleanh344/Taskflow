@@ -15,13 +15,13 @@ dependencies = [
     "bcrypt<5",
     "python-jose[cryptography]",
     "redis",
+    "prometheus-fastapi-instrumentator==8.1.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest",
     "pytest-cov",
-    "prometheus-fastapi-instrumentator==8.1.0",
     "ruff==0.15.12",
     "httpx",
 ]
