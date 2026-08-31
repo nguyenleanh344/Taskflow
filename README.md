@@ -170,4 +170,24 @@ kubectl scale deployment taskflow-api --replicas=3 -n taskflow
 kubectl get pods -n taskflow
 ```
 
+## Prometheus Monitoring
+
+The API exposes Prometheus metrics at `/metrics`. The Kubernetes setup includes a Prometheus Deployment that scrapes the API through the `taskflow-api` Service.
+
+Apply the Prometheus resources after deploying the API:
+
+```powershell
+kubectl apply -f k8s/prometheus-config.yaml
+kubectl apply -f k8s/prometheus.yaml
+kubectl get pods -n taskflow
+```
+
+Open the Prometheus UI:
+
+```powershell
+minikube service prometheus -n taskflow --url
+```
+
+In Prometheus, open **Status > Target health** and verify that the `taskflow-api` target is `UP`. You can also query metrics such as `http_requests_total`.
+
 In the current Minikube setup, PostgreSQL and Redis use `emptyDir`, so their data is lost when the Pods are deleted. This configuration is intended for learning; production should use PersistentVolumes or managed PostgreSQL and Redis services.

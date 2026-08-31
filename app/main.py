@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.exceptions.handlers import register_exception_handlers
 from app.api.v1.auth import router as auth_router
@@ -13,6 +14,12 @@ from app.cache.redis import close_redis
 app = FastAPI(
     title="Backend Lab",
     version="0.1.0",
+)
+
+Instrumentator().instrument(app).expose(
+    app,
+    endpoint="/metrics",
+    include_in_schema=False,
 )
 
 register_exception_handlers(app)
