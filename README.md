@@ -190,4 +190,35 @@ minikube service prometheus -n taskflow --url
 
 In Prometheus, open **Status > Target health** and verify that the `taskflow-api` target is `UP`. You can also query metrics such as `http_requests_total`.
 
+## Grafana Dashboards
+
+Grafana is included to visualize the metrics collected by Prometheus. Apply the datasource and Grafana resources:
+
+```powershell
+kubectl apply -f k8s/grafana-datasource.yaml
+kubectl apply -f k8s/grafana.yaml
+kubectl get pods -n taskflow
+```
+
+Open Grafana:
+
+```powershell
+minikube service grafana -n taskflow --url
+```
+
+Log in with:
+
+```text
+Username: admin
+Password: admin
+```
+
+The Prometheus datasource is provisioned automatically. In Grafana, go to **Explore**, select `Prometheus`, and try this query:
+
+```promql
+rate(http_requests_total{job="taskflow-api"}[1m])
+```
+
+The current setup uses `emptyDir` for Grafana data, so dashboards created manually will be lost when the Pod is deleted. Production should use persistent storage and a secret manager.
+
 In the current Minikube setup, PostgreSQL and Redis use `emptyDir`, so their data is lost when the Pods are deleted. This configuration is intended for learning; production should use PersistentVolumes or managed PostgreSQL and Redis services.
