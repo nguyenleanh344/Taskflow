@@ -13,6 +13,7 @@ class Settings(BaseSettings):
 
     redis_url: str = "redis://localhost:6379/0"
     project_cache_ttl_seconds: int = 300
+    rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
 
     model_config = SettingsConfigDict(
         env_file=".env",

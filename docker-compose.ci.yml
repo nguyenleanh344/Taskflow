@@ -19,17 +19,31 @@ services:
       timeout: 3s
       retries: 10
 
+  rabbitmq:
+    image: rabbitmq:4-management
+    environment:
+      RABBITMQ_DEFAULT_USER: taskflow
+      RABBITMQ_DEFAULT_PASS: taskflow
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+
   test:
     build:
       context: .
       dockerfile: docker/ci/Dockerfile
-    environment:
-      DATABASE_URL: postgresql+asyncpg://backend:backend@postgres:5432/backend_lab
-      REDIS_URL: redis://redis:6379/0
-      JWT_SECRET_KEY: ci-only-secret
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql+asyncpg://backend:backend@postgres:5432/backend_lab
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://taskflow:taskflow@rabbitmq:5672/
+      JWT_SECRET_KEY: ci-only-secret
     command: sh -c "alembic upgrade head && pytest -q tests/integration"

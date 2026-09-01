@@ -15,6 +15,7 @@ dependencies = [
     "bcrypt<5",
     "python-jose[cryptography]",
     "redis",
+    "aio-pika",
     "prometheus-fastapi-instrumentator==8.1.0",
 ]
 

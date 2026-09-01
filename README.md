@@ -18,10 +18,24 @@ python -m venv venv
 pip install -e ".[dev]"
 ```
 
-Start PostgreSQL and Redis:
+Start PostgreSQL, Redis, and RabbitMQ:
 
 ```powershell
-docker compose up -d postgres redis
+docker compose up -d postgres redis rabbitmq
+```
+
+For local Docker Compose, use these values in `.env`:
+
+```env
+DATABASE_URL=postgresql+asyncpg://backend:backend@127.0.0.1:5433/backend_lab
+REDIS_URL=redis://127.0.0.1:6379/0
+RABBITMQ_URL=amqp://taskflow:taskflow@127.0.0.1:5672/
+```
+
+Run migrations before using the API:
+
+```powershell
+alembic upgrade head
 ```
 
 Start the API:
@@ -65,6 +79,8 @@ The `Jenkinsfile` defines a pipeline that automatically:
 3. Runs unit tests and integration tests with PostgreSQL and Redis.
 4. Builds the Docker image.
 5. Pushes the image to Docker Hub.
+
+The current Jenkins pipeline builds and publishes the Docker image; it does not automatically apply Kubernetes manifests. Kubernetes deployment is currently performed manually with `kubectl`.
 
 The Jenkins job can use Poll SCM or a GitHub webhook to build automatically when a new commit is pushed to the `main` branch.
 
@@ -117,9 +133,19 @@ The Kubernetes manifests are located in the `k8s/` directory. Docker Desktop, `k
 Start the cluster:
 
 ```powershell
-minikube start --driver=docker
+minikube start --driver=docker --memory=4096 --cpus=4
+minikube update-context
 kubectl config use-context minikube
 kubectl get nodes
+```
+
+After restarting Docker Desktop or Windows, check the cluster first. If the API server is unreachable, recover it with:
+
+```powershell
+minikube stop
+minikube start --driver=docker --memory=4096 --cpus=4
+minikube update-context
+kubectl config use-context minikube
 ```
 
 Deploy the resources in this order:
@@ -130,8 +156,10 @@ kubectl apply -f k8s/secret.yaml
 kubectl apply -f k8s/configmap.yaml
 kubectl apply -f k8s/postgres.yaml
 kubectl apply -f k8s/redis.yaml
+kubectl apply -f k8s/rabbitmq.yaml
 kubectl apply -f k8s/api-deployment.yaml
 kubectl apply -f k8s/api-service.yaml
+kubectl apply -f k8s/worker-deployment.yaml
 ```
 
 Check the resources:
@@ -141,6 +169,8 @@ kubectl get pods -n taskflow
 kubectl get deployments -n taskflow
 kubectl get services -n taskflow
 kubectl rollout status deployment/taskflow-api -n taskflow
+kubectl rollout status deployment/rabbitmq -n taskflow
+kubectl rollout status deployment/taskflow-worker -n taskflow
 ```
 
 Open the API Swagger page:
@@ -182,6 +212,8 @@ kubectl apply -f k8s/prometheus.yaml
 kubectl get pods -n taskflow
 ```
 
+Open **Status > Target health** and verify that the `taskflow-api` target is `UP`. Requests from health probes, Swagger, Grafana, and Prometheus scrapes can increase HTTP request counters.
+
 Open the Prometheus UI:
 
 ```powershell
@@ -220,5 +252,61 @@ rate(http_requests_total{job="taskflow-api"}[1m])
 ```
 
 The current setup uses `emptyDir` for Grafana data, so dashboards created manually will be lost when the Pod is deleted. Production should use persistent storage and a secret manager.
+
+## RabbitMQ Background Worker
+
+RabbitMQ is used for asynchronous events. When a project is created, the API publishes a `project.created` event and the worker consumes it from the `taskflow.notifications` queue.
+
+Start RabbitMQ locally:
+
+```powershell
+docker compose up -d rabbitmq
+```
+
+RabbitMQ management UI:
+
+```text
+http://localhost:15672
+```
+
+Login with `taskflow` / `taskflow`. To run the worker locally:
+
+```powershell
+$env:RABBITMQ_URL = "amqp://taskflow:taskflow@localhost:5672/"
+python -m app.workers.rabbitmq_worker
+```
+
+For the Kubernetes RabbitMQ UI and AMQP port, use port forwarding in separate terminals:
+
+```powershell
+kubectl port-forward service/rabbitmq 15673:15672 -n taskflow
+kubectl port-forward service/rabbitmq 5673:5672 -n taskflow
+```
+
+Open `http://localhost:15673` for the Kubernetes RabbitMQ UI. If the local API is connected to the Kubernetes broker, set:
+
+```env
+RABBITMQ_URL=amqp://taskflow:taskflow@127.0.0.1:5673/
+```
+
+The Compose broker and Kubernetes broker are separate. A worker connected to one broker cannot receive messages published to the other. Verify the Kubernetes worker with:
+
+```powershell
+kubectl logs deployment/taskflow-worker -n taskflow -f
+```
+
+After creating a project, a successful log contains `Received project.created event`.
+
+To deploy RabbitMQ and the worker to Minikube:
+
+```powershell
+kubectl apply -f k8s/secret.yaml
+kubectl apply -f k8s/rabbitmq.yaml
+kubectl apply -f k8s/worker-deployment.yaml
+kubectl rollout status deployment/rabbitmq -n taskflow
+kubectl get pods -n taskflow
+```
+
+This local setup uses `emptyDir` for RabbitMQ data and default credentials for learning only. Production should use persistent storage, strong secrets, and a managed or secured RabbitMQ cluster.
 
 In the current Minikube setup, PostgreSQL and Redis use `emptyDir`, so their data is lost when the Pods are deleted. This configuration is intended for learning; production should use PersistentVolumes or managed PostgreSQL and Redis services.

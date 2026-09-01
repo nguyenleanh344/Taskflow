@@ -6,6 +6,7 @@ from app.schemas.pagination import PageResponse
 from app.schemas.project import ProjectCreate, ProjectResponse, ProjectUpdate
 from app.services.project_service import ProjectService
 from app.cache.redis import RedisCache, get_redis
+from app.messaging.rabbitmq import RabbitMQPublisher, get_rabbitmq_publisher
 
 router = APIRouter(
     prefix="/projects",
@@ -16,8 +17,9 @@ router = APIRouter(
 def get_project_service(
     uow: UnitOfWork = Depends(get_unit_of_work),
     cache: RedisCache = Depends(get_redis),
+    event_publisher: RabbitMQPublisher = Depends(get_rabbitmq_publisher),
 ) -> ProjectService:
-    return ProjectService(uow, cache)
+    return ProjectService(uow, cache, event_publisher)
 
 
 @router.post(

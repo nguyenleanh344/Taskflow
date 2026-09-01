@@ -19,10 +19,12 @@ class ProjectService:
         self,
         uow: UnitOfWork,
         cache: RedisCache | None = None,
+        event_publisher=None,
     ):
         self.uow = uow
         self.repository = uow.projects
         self.cache = cache
+        self.event_publisher = event_publisher
 
     async def create_project(
         self,
@@ -37,6 +39,16 @@ class ProjectService:
 
         await self.uow.commit()
         await self.uow.session.refresh(project)
+
+        if self.event_publisher is not None:
+            await self.event_publisher.publish(
+                routing_key="project.created",
+                payload={
+                    "project_id": project.id,
+                    "name": project.name,
+                    "owner_id": project.owner_id,
+                },
+            )
 
         return project
 
