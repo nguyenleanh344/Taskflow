@@ -21,6 +21,7 @@ services:
 
   rabbitmq:
     image: rabbitmq:4-management
+    user: "0:0"
     environment:
       RABBITMQ_DEFAULT_USER: taskflow
       RABBITMQ_DEFAULT_PASS: taskflow
