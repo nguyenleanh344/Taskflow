@@ -3,6 +3,7 @@ import logging
 
 import aio_pika
 from aio_pika import DeliveryMode, ExchangeType, Message
+from aio_pika.exceptions import AMQPError
 
 from app.core.config import settings
 
@@ -30,7 +31,7 @@ class RabbitMQPublisher:
                     ),
                     routing_key=routing_key,
                 )
-        except (aio_pika.AMQPError, OSError) as exc:
+        except (AMQPError, OSError) as exc:
             logger.warning("RabbitMQ publish failed: %s", exc)
 
 
